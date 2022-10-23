@@ -1,12 +1,28 @@
 import { Injectable } from '@nestjs/common';
-import { MemoryDebugger } from './decorators/memory/memory-debugger';
+import {
+  MemoryDebugger,
+  getPrimativeFromIndex,
+} from './decorators/memory/memory-debugger';
+
+type TypeSet = { num: number; array: any[]; obj: any; str: string };
 
 @Injectable()
 export class PerformanceService {
   private readonly arrayForMemoryAdjustment = [];
 
-  @MemoryDebugger('info', 'megabytes')
-  memoryDecorator(params: any) {
-    console.log('The contents of the function');
+  memoryDecorator(
+    num: number,
+    array: any[],
+    obj: any,
+    str: string,
+    params: TypeSet,
+  ) {
+    this.testRegularArguments(num, str, true);
   }
+
+  @MemoryDebugger('info', 'megabytes', getPrimativeFromIndex(0))
+  private testRegularArguments(first: number, second: string, third: boolean) {}
+
+  @MemoryDebugger('info', 'megabytes', getPrimativeFromIndex(0))
+  private testArrayArguments() {}
 }

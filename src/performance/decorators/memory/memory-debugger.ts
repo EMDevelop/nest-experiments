@@ -4,6 +4,10 @@ import os from 'os';
 // TYPES
 type OutputMetric = 'bytes' | 'megabytes' | 'gigabytes';
 type LogLevel = 'info' | 'warn' | 'error' | 'debug';
+type FunctionVariableLogCallback = (
+  logLevel: LogLevel,
+  message: string,
+) => string[];
 
 // DECORATORS
 /**
@@ -11,7 +15,11 @@ type LogLevel = 'info' | 'warn' | 'error' | 'debug';
  * Place above a method to log the current node process memory vs the limit.
  * Ref: https://nodejs.org/api/process.html#process_process_memoryusage
  */
-export function MemoryDebugger(logLevel: LogLevel, output?: OutputMetric) {
+export function MemoryDebugger(
+  logLevel: LogLevel,
+  output?: OutputMetric,
+  logMethods?: (args) => string[],
+) {
   return (
     target: any /* eslint-disable-line */,
     propertyKey: string,
@@ -20,14 +28,21 @@ export function MemoryDebugger(logLevel: LogLevel, output?: OutputMetric) {
     const originalFunction = descriptor.value;
 
     descriptor.value = function (...args: any[]) {
+      const loggableContext: string = logMethods
+        ? `${stringifyLoggableParams(logMethods(args))}`
+        : ``;
+      const loggableString = `${propertyKey}, ${snapshot(
+        output,
+      )}, Context: ${loggableContext}`;
+
       // Before
-      logOutput(logLevel, `Start: ${propertyKey}, ${snapshot(output)}`);
+      logOutput(logLevel, `Start: ` + loggableString);
 
       //   Actual
       const result = originalFunction.apply(this, args);
 
       //   After
-      logOutput(logLevel, `End: ${propertyKey}, ${snapshot(output)}`);
+      logOutput(logLevel, `End: ` + loggableString);
 
       return result;
     };
@@ -35,6 +50,21 @@ export function MemoryDebugger(logLevel: LogLevel, output?: OutputMetric) {
     return descriptor;
   };
 }
+
+// get args fuctions
+
+type ArgumentIndex = number;
+
+export const getPrimativeFromIndex = (index: ArgumentIndex) => (args: any[]) => {
+  return [args[index]];
+};
+
+export const getFromIndexOfArray =
+  (argIndex: number, arrayIndexes: number[]) => (args: any[]) => {
+    return arrayIndexes.map((index) => args[argIndex][index]);
+  };
+
+//
 
 // METHODS
 /** @description fetch the current memory usage
@@ -96,4 +126,8 @@ function logOutput(logLevel: LogLevel, message: string) {
       console.debug(message);
       break;
   }
+}
+
+function stringifyLoggableParams(loggableParams: any[]): string {
+  return loggableParams.join(', ');
 }
